@@ -1,6 +1,31 @@
 # xiaohongshu-content-finance
 
-小红书内容生成系统 — 一个自动化内容创作工作流，支持从研究到发布的一站式处理。
+<div align="center">
+
+![Demo](demo/process.png)
+
+**小红书金融内容生成系统** — 自动化内容创作工作流
+
+研究 → 内容 → 封面 → 发布，一站式处理
+
+</div>
+
+## 示例效果
+
+<table>
+<tr>
+<td align="center" width="50%">
+<img src="demo/example1.png" alt="示例 1" />
+<br />
+示例 1
+</td>
+<td align="center" width="50%">
+<img src="demo/example2.png" alt="示例 2" />
+<br />
+示例 2
+</td>
+</tr>
+</table>
 
 ## 功能
 
