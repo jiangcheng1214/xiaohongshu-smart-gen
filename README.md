@@ -2,27 +2,35 @@
 
 <div align="center">
 
-![Demo](demo/process.png)
-
-**小红书金融内容生成系统** — 自动化内容创作工作流
-
-研究 → 内容 → 封面 → 发布，一站式处理
+![License](https://img.shields.io/badge/license-MIT-blue)
+![Platform](https://img.shields.io/badge/platform-macos-lightgrey)
+![Openclaw](https://img.shields.io/badge/openclaw-skill-orange)
 
 </div>
 
-## 示例效果
+<div align="center">
+
+![工作流程](demo/process.png)
+
+**小红书金融内容生成系统** — 量化交易员视角，数据驱动
+
+`研究` → `内容` → `封面` → `发布`
+
+</div>
+
+## ✨ 示例效果
 
 <table>
 <tr>
 <td align="center" width="50%">
 <img src="demo/example1.png" alt="示例 1" />
 <br />
-示例 1
+<b>示例 1</b>
 </td>
 <td align="center" width="50%">
 <img src="demo/example2.png" alt="示例 2" />
 <br />
-示例 2
+<b>示例 2</b>
 </td>
 </tr>
 </table>
