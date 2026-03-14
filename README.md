@@ -10,7 +10,7 @@
 
 <div align="center">
 
-![工作流程](demo/process.png)
+<img src="demo/process.png" alt="工作流程" width="500" />
 
 **小红书金融内容生成系统** — 量化交易员视角，数据驱动
 
