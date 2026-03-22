@@ -7,7 +7,7 @@
 # 2. 不做任何自动纠正或推断
 # 3. 使用用户提供的精确输入
 
-SKILL_DIR="/Users/jaycee/.openclaw/skills/xiaohongshu-content-generator"
+SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCRIPT_DIR="$SKILL_DIR/scripts"
 
 VERTICAL="${1:-finance}"

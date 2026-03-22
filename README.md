@@ -79,18 +79,33 @@
 
 ## 使用方法
 
+### 方式一：OpenClaw 原生调用
+
+```bash
+# 直接调用 skill（推荐）
+/skill:xiaohongshu-smart-gen --vertical=finance --topic="PLTR还能追吗"
+
+# 或使用自然语言
+"帮我生成一篇关于 PLTR 的小红书金融内容"
+"用美妆垂类分析一下雅诗兰黛DW粉底液"
 ```
+
+### 方式二：xhs-do 快捷命令
+
+```bash
 ~/.openclaw/bin/xhs-do finance "PLTR还能追吗"
 ~/.openclaw/bin/xhs-do beauty "雅诗兰黛DW值得买吗"
 ~/.openclaw/bin/xhs-do tech "iPhone 16 Pro评测"
 ```
 
+> **区别**：`xhs-do` 是快捷包装器，绕过 AI 解析，直接使用精确输入。适合终端快速执行。
+
 ### 参数
 
 | 参数 | 说明 | 必需 | 默认值 |
 |------|------|------|--------|
-| `<垂类>` | 内容领域代码 | 否 | finance |
-| `<话题>` | 内容主题 | 是 | - |
+| `--vertical` | 内容领域代码 | 否 | finance |
+| `--topic` | 内容主题 | 是 | - |
 
 ### 环境变量
 
