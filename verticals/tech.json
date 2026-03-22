@@ -1,0 +1,123 @@
+{
+  "code": "tech",
+  "name": "科技",
+  "generation_mode": "strict",
+  "persona_id": "tech",
+  "keywords": [
+    "AI",
+    "芯片",
+    "手机",
+    "电脑",
+    "显卡",
+    "ChatGPT",
+    "苹果",
+    "华为",
+    "小米",
+    "笔记本",
+    "平板",
+    "智能手表",
+    "耳机",
+    "5G",
+    "折叠屏"
+  ],
+  "content_structure": {
+    "min_length": 380,
+    "max_length": 580,
+    "paragraphs": [
+      {
+        "order": 1,
+        "type": "hook",
+        "name": "开篇钩子",
+        "length": "1-2句",
+        "instruction": "直接说结论或抛问题"
+      },
+      {
+        "order": 2,
+        "type": "body",
+        "name": "产品定位",
+        "length": "40-60字",
+        "instruction": "这是什么产品，什么定位，什么价格"
+      },
+      {
+        "order": 3,
+        "type": "body",
+        "name": "核心参数",
+        "length": "60-100字",
+        "instruction": "处理器、内存、屏幕等核心参数"
+      },
+      {
+        "order": 4,
+        "type": "body",
+        "name": "实际体验",
+        "length": "60-100字",
+        "instruction": "实际使用感受，流畅度，续航，信号"
+      },
+      {
+        "order": 5,
+        "type": "body",
+        "name": "竞品对比",
+        "length": "50-80字",
+        "instruction": "和竞品对比，优势劣势"
+      },
+      {
+        "order": 6,
+        "type": "body",
+        "name": "价格分析",
+        "length": "40-60字",
+        "instruction": "值不值，性价比，同类对比"
+      },
+      {
+        "order": 7,
+        "type": "body",
+        "name": "购买建议",
+        "length": "1-2句",
+        "instruction": "适合谁，什么时候买"
+      },
+      {
+        "order": 8,
+        "type": "cta",
+        "name": "关注引导",
+        "length": "1-2句",
+        "instruction": "真实评测、参数党、持续分享，每次原创"
+      },
+      {
+        "order": 9,
+        "type": "tags",
+        "name": "话题标签",
+        "count": "5-8",
+        "instruction": "#数码 #科技 #评测 等"
+      }
+    ],
+    "requires_risk_warning": false,
+    "requires_data_timestamp": false,
+    "requires_sources": true
+  },
+  "title_template": {
+    "patterns": [
+      "{topic}真实评测",
+      "{topic}值不值得买？",
+      "{topic}参数党进",
+      "{topic}上手{天数}天感受",
+      "说人话：{topic}怎么样"
+    ],
+    "max_length": 20,
+    "style": "产品名 + 问题/结论"
+  },
+  "cover_config": {
+    "logo_file": "default.png",
+    "default_subtitle": "科技前沿",
+    "color_schemes": [
+      "dark blue to cyan gradient",
+      "deep purple to electric blue gradient",
+      "navy to teal gradient",
+      "black to holographic cyan gradient"
+    ],
+    "decorations": [
+      "circuit board patterns, subtle tech lines",
+      "geometric tech shapes, hexagons and nodes",
+      "digital grid pattern, low opacity",
+      "minimal data visualization, tech aesthetic"
+    ],
+    "style_prefix": "Tech and digital aesthetic background"
+  }
+}

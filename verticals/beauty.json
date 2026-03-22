@@ -1,0 +1,122 @@
+{
+  "code": "beauty",
+  "name": "美妆",
+  "generation_mode": "strict",
+  "persona_id": "beauty",
+  "keywords": [
+    "口红",
+    "粉底液",
+    "精华",
+    "面霜",
+    "防晒",
+    "护肤",
+    "彩妆",
+    "眼影",
+    "腮红",
+    "睫毛膏",
+    "妆前乳",
+    "散粉",
+    "气垫",
+    "遮瑕"
+  ],
+  "content_structure": {
+    "min_length": 350,
+    "max_length": 550,
+    "paragraphs": [
+      {
+        "order": 1,
+        "type": "hook",
+        "name": "开篇钩子",
+        "length": "1-2句",
+        "instruction": "直接说结论或制造悬念"
+      },
+      {
+        "order": 2,
+        "type": "body",
+        "name": "产品定位",
+        "length": "40-60字",
+        "instruction": "这是什么产品，什么牌子，什么价位"
+      },
+      {
+        "order": 3,
+        "type": "body",
+        "name": "质地体验",
+        "length": "60-100字",
+        "instruction": "质地描述，上脸感受，味道，延展性"
+      },
+      {
+        "order": 4,
+        "type": "body",
+        "name": "效果表现",
+        "length": "60-100字",
+        "instruction": "实际效果，持妆度，遮瑕力，显色度"
+      },
+      {
+        "order": 5,
+        "type": "body",
+        "name": "肤质适配",
+        "length": "40-60字",
+        "instruction": "什么肤质适合/不适合，干皮油皮"
+      },
+      {
+        "order": 6,
+        "type": "body",
+        "name": "性价比",
+        "length": "40-60字",
+        "instruction": "值不值，有平替吗，同类对比"
+      },
+      {
+        "order": 7,
+        "type": "body",
+        "name": "购买建议",
+        "length": "1-2句",
+        "instruction": "推荐/不推荐，适合谁"
+      },
+      {
+        "order": 8,
+        "type": "cta",
+        "name": "关注引导",
+        "length": "1-2句",
+        "instruction": "真实测评、避坑指南、持续分享，每次原创"
+      },
+      {
+        "order": 9,
+        "type": "tags",
+        "name": "话题标签",
+        "count": "5-8",
+        "instruction": "#美妆 #护肤 #测评 等"
+      }
+    ],
+    "requires_risk_warning": false,
+    "requires_data_timestamp": false,
+    "requires_sources": false
+  },
+  "title_template": {
+    "patterns": [
+      "{topic}真实测评",
+      "{topic}值不值得买？",
+      "{topic}踩雷/真香",
+      "黄皮/白皮姐妹看：{topic}",
+      "{topic}使用{天数}天感受"
+    ],
+    "max_length": 20,
+    "style": "产品名 + 结论/疑问"
+  },
+  "cover_config": {
+    "logo_file": "default.png",
+    "default_subtitle": "美妆测评",
+    "color_schemes": [
+      "soft pink to peach gradient",
+      "rose gold to warm champagne gradient",
+      "dusty rose to blush pink gradient",
+      "warm nude to soft coral gradient"
+    ],
+    "decorations": [
+      "soft floating petals, subtle",
+      "minimal hearts, low opacity",
+      "soft circular bokeh effects",
+      "elegant serif typography elements"
+    ],
+    "style_prefix": "Elegant beauty background"
+  }
+}
