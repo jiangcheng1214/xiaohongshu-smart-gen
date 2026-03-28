@@ -34,9 +34,9 @@ metadata:
 1. [用户] 提供垂类和主题
 2. [Agent] 执行完整生成流程
    cd ~/.openclaw/skills/xiaohongshu-smart-gen
-   PYTHONPATH=. python -m scripts.xhs_cli <vertical> "<topic>" --all
+   python3 xhs_gen.py <vertical> "<topic>"
 3. [Agent] 查看 session 信息
-   PYTHONPATH=. python -m scripts.xhs_cli info "<topic>"
+   python3 xhs_gen.py <vertical> "<topic>" --action info
 ```
 
 ### Session 管理
@@ -72,31 +72,14 @@ metadata:
 # 设置工作目录
 cd ~/.openclaw/skills/xiaohongshu-smart-gen
 
-# 完整生成（内容 + 封面）
-PYTHONPATH=. python -m scripts.xhs_cli finance "PLTR还能追吗" --all
+# 完整生成（内容 + 封面 + 发送）
+python3 xhs_gen.py finance "PLTR还能追吗"
 
 # 分步执行
-PYTHONPATH=. python -m scripts.xhs_cli finance "PLTR" --init     # 初始化
-PYTHONPATH=. python -m scripts.xhs_cli finance "PLTR" --content  # 生成内容
-PYTHONPATH=. python -m scripts.xhs_cli finance "PLTR" --images   # 搜索参考图片
-PYTHONPATH=. python -m scripts.xhs_cli finance "PLTR" --cover    # 生成封面
-PYTHONPATH=. python -m scripts.xhs_cli finance "PLTR" --info     # 查看信息
-```
-
-### 新接口命令
-
-```bash
-# 初始化新 session
-PYTHONPATH=. python -m scripts.xhs_cli init <vertical> "<topic>"
-
-# 显示 session 信息
-PYTHONPATH=. python -m scripts.xhs_cli info "<topic>"
-
-# 列出所有 sessions
-PYTHONPATH=. python -m scripts.xhs_cli list
-
-# 检查配置
-PYTHONPATH=. python -m scripts.xhs_cli check-config
+python3 xhs_gen.py finance "PLTR" --action init     # 初始化
+python3 xhs_gen.py finance "PLTR" --action content  # 生成内容
+python3 xhs_gen.py finance "PLTR" --action cover    # 生成封面
+python3 xhs_gen.py finance "PLTR" --action info     # 查看信息
 ```
 
 ### xhs-do 快捷方式（跨平台）
