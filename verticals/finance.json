@@ -3,6 +3,36 @@
   "name": "金融",
   "generation_mode": "strict",
   "persona_id": "finance",
+  "content_research": {
+    "queries": [
+      {
+        "template": "{topic} latest news today {year}",
+        "purpose": "获取最新市场动态和数据",
+        "required": true
+      },
+      {
+        "template": "{topic} analysis forecast {year}",
+        "purpose": "获取分析和预测"
+      }
+    ],
+    "extract_instructions": {
+      "data_points": "Extract key financial data points and numbers",
+      "timestamps": "Extract data timestamps"
+    }
+  },
+  "content_validation": {
+    "rules": [
+      {"id": "has_title_subtitle", "description": "title 4-8字，subtitle 8-15字"},
+      {"id": "length_in_range", "params": {"min": 400, "max": 600}},
+      {"id": "no_forbidden_expressions", "forbidden": ["值得注意的是", "综上所述", "然而", "此外", "另外", "一方面", "另一方面", "总而言之", "显而易见"]},
+      {"id": "no_bullet_points"},
+      {"id": "has_data_points"},
+      {"id": "follows_structure"},
+      {"id": "topic_relevance"}
+    ],
+    "min_score": 5,
+    "max_retries": 3
+  },
   "keywords": [
     "美联储",
     "利率",

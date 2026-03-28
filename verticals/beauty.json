@@ -3,6 +3,36 @@
   "name": "美妆",
   "generation_mode": "strict",
   "persona_id": "beauty",
+  "content_research": {
+    "queries": [
+      {
+        "template": "{topic} review latest {year}",
+        "purpose": "获取最新测评和体验",
+        "required": true
+      },
+      {
+        "template": "{topic} ingredients comparison {year}",
+        "purpose": "获取成分和对比"
+      }
+    ],
+    "extract_instructions": {
+      "ingredients": "Extract key ingredients",
+      "price": "Extract current price"
+    }
+  },
+  "content_validation": {
+    "rules": [
+      {"id": "has_title_subtitle", "description": "title 4-8字，subtitle 8-15字"},
+      {"id": "length_in_range", "params": {"min": 350, "max": 550}},
+      {"id": "no_forbidden_expressions", "forbidden": ["值得注意的是", "综上所述", "然而", "此外", "另外", "一方面", "另一方面", "完美融合", "绝佳体验"]},
+      {"id": "no_bullet_points"},
+      {"id": "has_data_points"},
+      {"id": "follows_structure"},
+      {"id": "topic_relevance"}
+    ],
+    "min_score": 5,
+    "max_retries": 3
+  },
   "keywords": [
     "口红",
     "粉底液",

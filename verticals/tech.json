@@ -3,6 +3,36 @@
   "name": "科技",
   "generation_mode": "strict",
   "persona_id": "tech",
+  "content_research": {
+    "queries": [
+      {
+        "template": "{topic} review latest {year}",
+        "purpose": "获取最新评测和参数",
+        "required": true
+      },
+      {
+        "template": "{topic} specs price comparison {year}",
+        "purpose": "获取规格和价格对比"
+      }
+    ],
+    "extract_instructions": {
+      "specs": "Extract key specifications",
+      "price": "Extract current price"
+    }
+  },
+  "content_validation": {
+    "rules": [
+      {"id": "has_title_subtitle", "description": "title 4-8字，subtitle 8-15字"},
+      {"id": "length_in_range", "params": {"min": 380, "max": 580}},
+      {"id": "no_forbidden_expressions", "forbidden": ["值得注意的是", "综上所述", "然而", "此外", "另外", "一方面", "另一方面", "完美诠释", "极致体验"]},
+      {"id": "no_bullet_points"},
+      {"id": "has_data_points"},
+      {"id": "follows_structure"},
+      {"id": "topic_relevance"}
+    ],
+    "min_score": 5,
+    "max_retries": 3
+  },
   "keywords": [
     "AI",
     "芯片",

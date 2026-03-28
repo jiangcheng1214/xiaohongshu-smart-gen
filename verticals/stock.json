@@ -3,6 +3,41 @@
   "name": "个股分析",
   "generation_mode": "strict",
   "persona_id": "stock",
+  "content_research": {
+    "queries": [
+      {
+        "template": "{topic} stock current status {year}",
+        "purpose": "核实股票代码有效性"
+      },
+      {
+        "template": "{topic} stock price today latest news earnings {year}",
+        "purpose": "获取最新行情和财报",
+        "required": true
+      },
+      {
+        "template": "{topic} stock news today catalyst {year}",
+        "purpose": "获取最新催化剂"
+      }
+    ],
+    "extract_instructions": {
+      "price": "Extract the current/last traded price",
+      "change": "Extract the daily percent change",
+      "earnings": "Extract latest EPS and revenue"
+    }
+  },
+  "content_validation": {
+    "rules": [
+      {"id": "has_title_subtitle", "description": "title 4-8字，subtitle 8-15字"},
+      {"id": "length_in_range", "params": {"min": 300, "max": 800}},
+      {"id": "no_forbidden_expressions", "forbidden": ["值得注意的是", "综上所述", "然而", "此外", "另外", "一方面", "另一方面", "总而言之", "让我们来看看", "显而易见", "毋庸置疑"]},
+      {"id": "no_bullet_points"},
+      {"id": "has_data_points"},
+      {"id": "follows_structure"},
+      {"id": "topic_relevance"}
+    ],
+    "min_score": 5,
+    "max_retries": 3
+  },
   "keywords": [
     "财报",
     "估值",
@@ -65,19 +100,13 @@
         "order": 4,
         "type": "body",
         "name": "短线长线是否看好",
-        "instruction": "短线能不能追，现在的位置怎么判断；长线基本面支撑不支撑。给明确判断，不骑墙"
+        "instruction": "结合最新的新闻消息, 给出未来走势的预测, 提及重要影响股价的事件"
       },
       {
         "order": 5,
-        "type": "body",
-        "name": "重要小道消息",
-        "instruction": "圈内消息、管理层动向、产业链传闻。注明是小道消息，非公开信息"
-      },
-      {
-        "order": 6,
         "type": "tags",
         "name": "话题标签",
-        "instruction": "#股票 #个股分析 #投资"
+        "instruction": "能够提高流量的切题的标签"
       }
     ],
     "requires_risk_warning": true,
@@ -114,16 +143,16 @@
       },
       "price": {
         "source": "web_search",
-        "query": "{stock_code} stock quote current price",
+        "query": "site:finance.yahoo.com {stock_code} stock price",
         "default": "---",
-        "description": "Find the current stock price. Search for '{stock_code} stock quote' or '{stock_code} stock price'. Return ONLY the price with $ sign like $150.25."
+        "description": "Get the current stock price for {stock_code}. Use Yahoo Finance as the source. Return ONLY the price in format $150.25 with dollar sign."
       },
       "change": {
         "source": "web_search",
-        "query": "{stock_code} stock previous close and current price percent change today",
+        "query": "site:finance.yahoo.com {stock_code} stock percent change today",
         "default": "0.0%",
         "extract_pattern": "[+-]?\\d+\\.?\\d*%",
-        "description": "Calculate today's percent change: (current price - previous close) / previous close * 100. Return format like +1.5% or -2.3% with sign."
+        "description": "Get today's percent change for {stock_code} stock. Use Yahoo Finance as the source. Return ONLY the percentage with sign like +1.5% or -2.3%."
       },
       "trend_arrow": {
         "source": "conditional",
@@ -148,15 +177,15 @@
       "reason": {
         "source": "web_search",
         "query": "{stock_code} stock news today catalyst why moving",
-        "default": "市场波动",
-        "description": "请用20-30个中文字符或12-18个英文单词详细总结今日该股票涨跌的原因"
+        "default": "market volatility",
+        "description": "Brief explanation of today's price change. English only, maximum 5 words. Examples: 'AI demand surge', 'earnings beat expectations', 'regulatory concerns', 'market sell-off'."
       },
       "product_name": {
         "source": "llm_inference",
-        "inference_prompt": "What is the single most iconic flagship hardware product for the company with stock code {stock_code}? Return only the product name in 1-3 words.",
+        "inference_prompt": "For stock code {stock_code}, identify the company's core flagship product OR iconic building exterior that would be recognizable in 3D miniature form. Examples: iPhone for AAPL, GeForce RTX GPU for NVDA, Model S for TSLA, Echo for AMZN, Xbox for MSFT. Return ONLY the product/building name in 1-5 words, no explanation.",
         "depends_on": ["stock_code"],
-        "default": "Flagship Product",
-        "description": "公司标志性拳头产品名称"
+        "default": "flagship product",
+        "description": "公司核心旗舰产品或标志性建筑外观"
       },
       "lighting_style": {
         "source": "conditional",
