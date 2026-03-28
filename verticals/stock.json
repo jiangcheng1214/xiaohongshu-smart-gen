@@ -183,7 +183,7 @@
       },
       "product_name": {
         "source": "llm_inference",
-        "inference_prompt": "For stock code {stock_code}, identify the company's core flagship product OR iconic building exterior that would be recognizable in 3D miniature form. Examples: iPhone for AAPL, GeForce RTX GPU for NVDA, Model S for TSLA, Echo for AMZN, Xbox for MSFT. Return ONLY the product/building name in 1-5 words, no explanation.",
+        "inference_prompt": "You MUST match the stock code {stock_code} to its EXACT company. For {stock_code}, identify: 1) The exact company name 2) Their most iconic flagship product OR building exterior. Be VERY specific to this company.\n\nExamples:\n- AAPL (Apple) → iPhone or Apple Park spaceship campus\n- NVDA (NVIDIA) → GeForce RTX GPU or black chip\n- TSLA (Tesla) → Model S or Cybertruck or Gigafactory\n- AMZN (Amazon) → Echo or Amazon boxes or HQ spheres\n- MSFT (Microsoft) → Xbox or Surface or Windows logo\n- META (Meta/Facebook) → Facebook like icon or Meta Quest headset\n- GOOGL (Google/Alphabet) → Google Search logo or Android mascot\n- SNAP (Snapchat) → Ghost icon or Spectacles or Snap logo\n- NFLX (Netflix) → N logo or red Netflix interface\n- AMD (AMD) → Radeon GPU or chip with AMD logo\n- INTC (Intel) → Intel chip with blue logo\n\nCRITICAL: First identify the exact company for {stock_code}, THEN give their product. DO NOT guess a similar company.\nReturn ONLY the product/building description in 2-8 words, no explanation.",
         "depends_on": ["stock_code"],
         "default": "flagship product",
         "description": "公司核心旗舰产品或标志性建筑外观"

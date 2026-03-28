@@ -1099,6 +1099,20 @@ class Step4aValidateStockData(BaseStep):
                     sources['reason'] = 'web_search_retry'
                     session.log('info', 'validate_stock_data', f'Refetched reason: {new_reason}')
 
+            # 验证 product_name（确保与 stock_code 匹配）
+            product_name = variables.get('product_name', '')
+            if product_name:
+                product_valid = self._validate_product_name(stock_code, product_name)
+                if not product_valid:
+                    session.log('warn', 'validate_stock_data',
+                               f'product_name "{product_name}" may not match {stock_code}')
+                    # 重新获取 product_name
+                    new_product = self._fetch_product_name(stock_code, session)
+                    if new_product and new_product != product_name:
+                        variables['product_name'] = new_product
+                        sources['product_name'] = 'llm_inference_retry'
+                        session.log('info', 'validate_stock_data', f'Refetched product_name: {new_product}')
+
             # 更新填充的 prompt
             config = self.load_vertical_config(session.vertical)
             cover_config = config.get('cover_config', {})
@@ -1241,6 +1255,76 @@ class Step4aValidateStockData(BaseStep):
         if result:
             return result
         session.log('warn', 'validate_stock_data', 'Failed to fetch reason')
+        return None
+
+    def _validate_product_name(self, stock_code: str, product_name: str) -> bool:
+        """验证 product_name 是否与 stock_code 匹配"""
+        if not product_name or product_name == 'flagship product':
+            return False
+
+        # 已知的 stock_code 到 product_name 的映射
+        # 用于验证推断的产品是否正确
+        known_products = {
+            'AAPL': ['iphone', 'apple', 'ipad', 'macbook', 'ios'],
+            'NVDA': ['geforce', 'nvidia', 'rtx', 'gpu', 'chip', 'cuda'],
+            'TSLA': ['tesla', 'model', 'cybertruck', 'electric'],
+            'META': ['facebook', 'meta', 'instagram', 'whatsapp', 'quest', 'oculus'],
+            'GOOGL': ['google', 'android', 'chrome', 'pixel', 'search'],
+            'AMZN': ['amazon', 'echo', 'alexa', 'aws', 'kindle', 'prime'],
+            'MSFT': ['microsoft', 'windows', 'xbox', 'surface', 'office', 'azure'],
+            'SNAP': ['snap', 'snapchat', 'ghost', 'spectacles', 'camera'],
+            'NFLX': ['netflix', 'streaming', 'n series'],
+            'AMD': ['amd', 'radeon', 'cpu', 'processor'],
+            'INTC': ['intel', 'processor', 'cpu', 'chip'],
+        }
+
+        product_lower = product_name.lower()
+
+        # 检查是否包含已知的产品关键词
+        if stock_code.upper() in known_products:
+            valid_keywords = known_products[stock_code.upper()]
+            for keyword in valid_keywords:
+                if keyword in product_lower:
+                    return True
+
+            # 检查是否包含其他公司的关键词（错误匹配）
+            for other_code, other_keywords in known_products.items():
+                if other_code != stock_code.upper():
+                    for keyword in other_keywords:
+                        if keyword in product_lower:
+                            session.log('warn', 'validate_stock_data',
+                                       f'product_name "{product_name}" contains {other_code} keyword "{keyword}"')
+                            return False
+
+        # 无法确定，返回 True（允许通过）
+        return True
+
+    def _fetch_product_name(self, stock_code: str, session: XhsSession) -> Optional[str]:
+        """重新获取 product_name"""
+        prompt = f"""For stock code {stock_code}, identify the EXACT company first, THEN their most iconic flagship product.
+
+Be VERY specific to {stock_code}:
+- AAPL is Apple → iPhone, iPad, Mac
+- NVDA is NVIDIA → GeForce RTX, GPU, chip
+- TSLA is Tesla → Model S, Cybertruck
+- META is Meta/Facebook → Ghost icon, Quest
+- SNAP is Snap Inc. → Ghost icon, Spectacles, camera
+- AMZN is Amazon → Echo, Alexa, boxes
+
+Return ONLY the product description in 2-6 words. DO NOT mention other companies."""
+
+        try:
+            result = subprocess.run(
+                ['claude', '--dangerously-skip-permissions', '-p', prompt],
+                capture_output=True, text=True, timeout=30
+            )
+            if result.returncode == 0 and result.stdout:
+                cleaned = result.stdout.strip().split('\n')[0]
+                cleaned = re.sub(r'^["\']|["\']$', '', cleaned)
+                if len(cleaned) >= 3:
+                    return cleaned.lower()
+        except Exception:
+            pass
         return None
 
 
