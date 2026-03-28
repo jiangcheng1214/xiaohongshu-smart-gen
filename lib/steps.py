@@ -1308,6 +1308,10 @@ class Step4aValidateStockData(BaseStep):
         if reason.endswith(',') or reason.endswith('.'):
             return False
 
+        # 检查长度（过长的原因说明通常不是简短的原因）
+        if len(reason) > 50:
+            return False
+
         return True
 
     def _fetch_price(self, stock_code: str, session: XhsSession) -> Optional[str]:
