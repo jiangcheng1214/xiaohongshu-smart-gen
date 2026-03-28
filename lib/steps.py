@@ -887,6 +887,247 @@ Return ONLY the value, max 30 words. No explanation."""
 
 
 # =============================================================================
+# Step 4a: Validate Stock Data (仅用于股票垂类)
+# =============================================================================
+
+class Step4aValidateStockData(BaseStep):
+    """Step 4a: 验证股票数据准确性"""
+
+    def run(self, session: XhsSession, **kwargs) -> bool:
+        """执行股票数据验证步骤"""
+        # 只对 stock 垂类执行验证
+        if session.vertical != 'stock':
+            return True
+
+        session.log('info', 'validate_stock_data', 'Step started')
+        session.update_step('validate_stock_data', 'in_progress')
+
+        max_retries = 3
+        retry_count = 0
+
+        while retry_count < max_retries:
+            # 获取当前的数据
+            prepare_data = session.get_step_data('prepare_img')
+            variables = prepare_data.get('variables', {})
+            sources = prepare_data.get('variables_source', {})
+
+            stock_code = variables.get('stock_code', '')
+            price = variables.get('price', '')
+            change = variables.get('change', '')
+            reason = variables.get('reason', '')
+
+            session.log('info', 'validate_stock_data',
+                       f'Validation attempt {retry_count + 1}/{max_retries}',
+                       {'stock_code': stock_code, 'price': price, 'change': change, 'reason': reason})
+
+            # 验证价格格式
+            price_valid = self._validate_price(price)
+            if not price_valid:
+                session.log('warn', 'validate_stock_data', f'Invalid price format: {price}')
+                # 重新获取价格
+                new_price = self._fetch_price(stock_code, session)
+                if new_price:
+                    variables['price'] = new_price
+                    sources['price'] = 'web_search_retry'
+                    session.log('info', 'validate_stock_data', f'Refetched price: {new_price}')
+
+            # 验证变动格式
+            change_valid = self._validate_change(change)
+            if not change_valid:
+                session.log('warn', 'validate_stock_data', f'Invalid change format: {change}')
+                # 重新获取变动
+                new_change = self._fetch_change(stock_code, session)
+                if new_change:
+                    variables['change'] = new_change
+                    sources['change'] = 'web_search_retry'
+                    session.log('info', 'validate_stock_data', f'Refetched change: {new_change}')
+
+            # 验证 reason
+            reason_valid = self._validate_reason(reason)
+            if not reason_valid:
+                session.log('warn', 'validate_stock_data', f'Invalid reason: {reason}')
+                # 重新获取 reason
+                new_reason = self._fetch_reason(stock_code, session)
+                if new_reason:
+                    variables['reason'] = new_reason
+                    sources['reason'] = 'web_search_retry'
+                    session.log('info', 'validate_stock_data', f'Refetched reason: {new_reason}')
+
+            # 更新填充的 prompt
+            config = self.load_vertical_config(session.vertical)
+            cover_config = config.get('cover_config', {})
+            template = cover_config.get('background_prompt_template', '')
+            for _ in range(3):
+                prev = template
+                for var_name, var_value in variables.items():
+                    template = template.replace(f'{{{var_name}}}', str(var_value))
+                if template == prev:
+                    break
+
+            # 更新 session
+            session.update_step('prepare_img', 'completed', {
+                'variables': variables,
+                'variables_source': sources,
+                'filled_prompt': template
+            })
+
+            # 最终验证
+            if (self._validate_price(variables.get('price', '')) and
+                self._validate_change(variables.get('change', '')) and
+                self._validate_reason(variables.get('reason', ''))):
+                session.update_step('validate_stock_data', 'completed', {
+                    'validated_data': {
+                        'stock_code': stock_code,
+                        'price': variables.get('price', ''),
+                        'change': variables.get('change', ''),
+                        'reason': variables.get('reason', '')
+                    }
+                })
+                session.log('success', 'validate_stock_data', 'All data validated successfully')
+                return True
+
+            retry_count += 1
+
+        # 达到最大重试次数
+        session.update_step('validate_stock_data', 'completed', {
+            'validation_result': 'max_retries_reached',
+            'final_data': variables
+        })
+        session.log('warn', 'validate_stock_data', 'Reached max retries, using current data')
+        return True  # 继续执行，使用当前数据
+
+    def _validate_price(self, price: str) -> bool:
+        """验证价格格式"""
+        if not price or price == '---':
+            return False
+        # 格式: $XXX.XX
+        return bool(re.match(r'^\$\d{1,5}\.\d{2}$', price))
+
+    def _validate_change(self, change: str) -> bool:
+        """验证变动格式"""
+        if not change or change == '0.0%':
+            return False
+        # 格式: +X.XX% 或 -X.XX%
+        return bool(re.match(r'^[+-]\d+\.?\d*%$', change))
+
+    def _validate_reason(self, reason: str) -> bool:
+        """验证 reason 格式"""
+        if not reason or reason == 'market volatility':
+            return False
+
+        # 检查是否包含无效的关键词或模式（部分匹配）
+        invalid_patterns = [
+            'based on my',
+            'according to',
+            'per my',
+            'i found',
+            'search result',
+            'cannot determine',
+            'unable to',
+            'not available',
+            'no information',
+            'as of my'
+        ]
+        reason_lower = reason.lower()
+        for pattern in invalid_patterns:
+            if pattern in reason_lower:
+                return False
+
+        # 应该是简短的英文短语，2-5个单词
+        words = reason.strip().split()
+        if not (2 <= len(words) <= 5):
+            return False
+
+        # 必须是纯 ASCII 字符
+        if not reason.isascii():
+            return False
+
+        # 检查是否以冠词或代词开头（通常表示解析失败）
+        invalid_starts = ['the ', 'a ', 'an ', 'i ', 'it ', 'this ']
+        if any(reason_lower.startswith(s) for s in invalid_starts):
+            return False
+
+        # 检查是否以标点符号结尾（可能是不完整的句子）
+        if reason.endswith(',') or reason.endswith('.'):
+            return False
+
+        return True
+
+    def _fetch_price(self, stock_code: str, session: XhsSession) -> Optional[str]:
+        """重新获取价格"""
+        prompt = f"""What is the CURRENT stock price of {stock_code}?
+Today is {datetime.now().strftime('%Y-%m-%d')}.
+
+Return ONLY the price in format $XXX.XX (with dollar sign).
+Example: $150.25
+
+Return ONLY the price, nothing else."""
+        try:
+            result = self.call_llm(prompt, expect_json=False, timeout=90)
+            if result:
+                match = re.search(r'\$\d{1,5}\.\d{2}', result)
+                if match:
+                    return match.group(0)
+        except Exception as e:
+            session.log('warn', 'validate_stock_data', f'Failed to fetch price: {str(e)}')
+        return None
+
+    def _fetch_change(self, stock_code: str, session: XhsSession) -> Optional[str]:
+        """重新获取变动"""
+        prompt = f"""What is the MOST RECENT daily percent change for {stock_code} stock?
+Today is {datetime.now().strftime('%Y-%m-%d')}.
+
+Return ONLY the percentage with sign and percent sign.
+Format: +X.XX% or -X.XX%
+Example: +1.5% or -2.3%
+
+Return ONLY the percentage, nothing else."""
+        try:
+            result = self.call_llm(prompt, expect_json=False, timeout=90)
+            if result:
+                match = re.search(r'[+-]?\d+\.?\d*%', result)
+                if match:
+                    pct = match.group(1)
+                    if not pct.startswith(('+', '-')):
+                        # 尝试从结果中判断正负
+                        if 'down' in result.lower()[:100] or 'declin' in result.lower()[:100] or 'fall' in result.lower()[:100]:
+                            pct = '-' + pct
+                        else:
+                            pct = '+' + pct
+                    return f'{pct}%'
+        except Exception as e:
+            session.log('warn', 'validate_stock_data', f'Failed to fetch change: {str(e)}')
+        return None
+
+    def _fetch_reason(self, stock_code: str, session: XhsSession) -> Optional[str]:
+        """重新获取 reason"""
+        prompt = f"""What is the main reason why {stock_code} stock is moving today?
+Today is {datetime.now().strftime('%Y-%m-%d')}.
+
+Return ONLY a brief English explanation, maximum 5 words.
+Examples: 'AI demand surge', 'earnings beat expectations', 'regulatory concerns', 'market sell-off'
+
+Return ONLY the brief reason, no explanation."""
+        try:
+            result = self.call_llm(prompt, expect_json=False, timeout=60)
+            if result:
+                # 清理结果
+                cleaned = result.strip().split('\n')[0]
+                # 移除引号
+                cleaned = re.sub(r'^["\']|["\']$', '', cleaned)
+                # 只保留前5个单词
+                words = cleaned.split()[:5]
+                cleaned = ' '.join(words)
+                # 移除结尾标点
+                cleaned = re.sub(r'[.!?;,]+$', '', cleaned)
+                if len(cleaned) >= 3:
+                    return cleaned.lower()
+        except Exception as e:
+            session.log('warn', 'validate_stock_data', f'Failed to fetch reason: {str(e)}')
+        return None
+
+
+# =============================================================================
 # Step 5: Generate Image
 # =============================================================================
 

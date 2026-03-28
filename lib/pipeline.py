@@ -15,6 +15,7 @@ from steps import (
     Step2Generate,
     Step3Validate,
     Step4PrepareImg,
+    Step4aValidateStockData,
     Step5GenImg,
     Step6Overlay,
     Step7Deliver
@@ -52,6 +53,7 @@ class Pipeline:
         self.step2 = Step2Generate(self.skill_dir)
         self.step3 = Step3Validate(self.skill_dir)
         self.step4 = Step4PrepareImg(self.skill_dir)
+        self.step4a = Step4aValidateStockData(self.skill_dir)
         self.step5 = Step5GenImg(self.skill_dir)
         self.step6 = Step6Overlay(self.skill_dir)
         self.step7 = Step7Deliver(self.skill_dir)
@@ -161,6 +163,11 @@ class Pipeline:
         print("# Step 4: 收集封面变量")
         if not self.step4.run(session):
             return False
+
+        # Step 4a: 验证股票数据（仅 stock 垂类）
+        if session.vertical == 'stock':
+            print("# Step 4a: 验证股票数据")
+            self.step4a.run(session)
 
         print("# Step 5: 生成封面图片")
         if not self.step5.run(session):
