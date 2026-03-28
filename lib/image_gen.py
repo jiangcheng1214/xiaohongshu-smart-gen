@@ -13,7 +13,8 @@ from typing import Optional
 
 
 def generate_image(prompt: str, output_path: Path,
-                  api_key: str = "", resolution: str = "1K") -> bool:
+                  api_key: str = "", resolution: str = "1K",
+                  reference_image: Optional[Path] = None) -> bool:
     """
     生成图片
 
@@ -22,6 +23,7 @@ def generate_image(prompt: str, output_path: Path,
         output_path: 输出文件路径
         api_key: Gemini API key
         resolution: 分辨率 (1K, 2K)
+        reference_image: 参考图片路径（用于保持一致性）
 
     Returns:
         bool: 是否成功
@@ -49,6 +51,10 @@ def generate_image(prompt: str, output_path: Path,
            '--prompt', prompt,
            '--filename', str(output_path),
            '--resolution', resolution]
+
+    # 添加参考图片
+    if reference_image and reference_image.exists():
+        cmd.extend(['--input-image', str(reference_image)])
 
     if api_key:
         cmd.extend(['--api-key', api_key])

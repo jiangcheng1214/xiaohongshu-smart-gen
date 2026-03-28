@@ -1,0 +1,156 @@
+{
+  "code": "wallpaper",
+  "name": "手机壁纸",
+  "generation_mode": "creative",
+  "persona_id": "wallpaper",
+  "content_research": {
+    "queries": [
+      {
+        "template": "{topic} wallpaper design trends {year}",
+        "purpose": "获取壁纸设计趋势"
+      },
+      {
+        "template": "{topic} aesthetic color palette inspiration",
+        "purpose": "获取配色灵感"
+      }
+    ]
+  },
+  "content_validation": {
+    "rules": [
+      {"id": "has_title_subtitle", "description": "title 4-8字，subtitle 8-15字"},
+      {"id": "length_in_range", "params": {"min": 150, "max": 300}},
+      {"id": "no_forbidden_expressions", "forbidden": ["值得注意的是", "综上所述", "然而", "此外", "另外", "一方面", "另一方面", "总而言之", "让我们来看看", "显而易见", "毋庸置疑"]},
+      {"id": "no_bullet_points"},
+      {"id": "follows_structure"}
+    ],
+    "min_score": 5,
+    "max_retries": 3
+  },
+  "keywords": [
+    "壁纸",
+    "手机壁纸",
+    "锁屏",
+    "桌面壁纸",
+    "壁纸分享",
+    "高清壁纸",
+    "唯美壁纸",
+    "极简壁纸",
+    "ins风壁纸",
+    "森系壁纸",
+    "渐变壁纸",
+    "纯色壁纸",
+    "百搭壁纸",
+    "小众壁纸",
+    "高级感壁纸"
+  ],
+  "content_structure": {
+    "min_length": 150,
+    "max_length": 300,
+    "paragraphs": [
+      {
+        "order": 1,
+        "type": "hook",
+        "name": "风格描述",
+        "instruction": "一句话概括壁纸风格和氛围，营造画面感"
+      },
+      {
+        "order": 2,
+        "type": "body",
+        "name": "使用场景",
+        "instruction": "适合什么人群、什么心情、什么场景使用，描述搭配效果"
+      },
+      {
+        "order": 3,
+        "type": "cta",
+        "name": "引导保存",
+        "instruction": "引导保存壁纸、关注获取更多，用温柔有感染力的语气"
+      },
+      {
+        "order": 4,
+        "type": "tags",
+        "name": "话题标签",
+        "count": "3-5",
+        "instruction": "#壁纸 #手机壁纸 #锁屏 #壁纸分享 等"
+      }
+    ],
+    "style": "gentle",
+    "no_bullet_points": true,
+    "max_paragraphs": 4
+  },
+  "title_template": {
+    "patterns": [
+      "{风格感}壁纸分享",
+      "今日份壁纸",
+      "{风格}系壁纸",
+      "治愈系壁纸"
+    ],
+    "max_length": 10,
+    "style": "温柔有氛围感",
+    "separator": ""
+  },
+  "cover_config": {
+    "logo_file": "wallpaper.png",
+    "images": [
+      {
+        "id": "wallpaper",
+        "name": "壁纸图",
+        "aspect_ratio": "9:16",
+        "is_cover": true,
+        "background_prompt_template": "A stunning mobile wallpaper in {style} style, {color_scheme} color palette.\n\nThe design features:\n- Clean, uncluttered composition perfect for a phone screen\n- {style} aesthetic with {visual_elements}\n- Smooth gradients and subtle textures\n- Modern, elegant, and eye-catching\n\n9:16 vertical ratio, 4K resolution, high quality, minimalist yet striking design.\nNo text, no words, no letters, pure visual art."
+      },
+      {
+        "id": "mockup",
+        "name": "iPhone展示图",
+        "aspect_ratio": "9:16",
+        "is_cover": false,
+        "background_prompt_template": "A sleek iPhone 15 Pro floating in {bg_color} minimalist background.\n\nCRITICAL - The phone screen MUST display:\n1. The EXACT wallpaper matching this description: {visual_description}\n2. iPhone lock screen UI with time showing '{lock_time}' at the top\n3. Date showing '{lock_date}' below the time\n4. The text must be elegant, thin sans-serif font, white color\n\nWallpaper details (must be faithfully rendered on screen):\n- Style: {style}\n- Color scheme: {color_scheme}\n- Visual elements: {visual_elements}\n\niPhone details:\n- Titanium frame with brushed metal texture\n- Dynamic Island visible at the top\n- Screen has subtle glass reflection\n- Time and date overlaid on the wallpaper\n\nLighting & Composition:\n- Soft studio lighting with gentle highlights\n- Subtle shadow beneath the device\n- Phone positioned using rule of thirds\n- Clean, premium product photography aesthetic\n\n9:16 vertical ratio, 8K resolution, C4D render, ultra-realistic."
+      }
+    ],
+    "prompt_variables": {
+      "style": {
+        "source": "llm_inference",
+        "inference_prompt": "Based on the topic '{topic}', identify the wallpaper style. Choose ONE from: minimalist, nature, gradient, abstract, geometric, floral, anime, landscape, urban, texture. Return ONLY the style name, no explanation.",
+        "default": "minimalist",
+        "description": "壁纸风格"
+      },
+      "color_scheme": {
+        "source": "llm_inference",
+        "inference_prompt": "Based on the style '{style}', suggest a color scheme. Choose ONE from: soft pastel, vibrant, monochrome, earth tones, cool blue, warm sunset, forest green, ocean blue. Return ONLY the color scheme name, no explanation.",
+        "depends_on": ["style"],
+        "default": "soft pastel",
+        "description": "配色方案"
+      },
+      "visual_elements": {
+        "source": "llm_inference",
+        "inference_prompt": "Based on the '{style}' style and '{color_scheme}' color scheme, describe 2-3 visual elements in simple English. Examples: 'gentle waves and soft clouds', 'geometric shapes and clean lines', 'delicate leaves and petals', 'smooth gradients and abstract forms'. Return ONLY the description, max 15 words.",
+        "depends_on": ["style", "color_scheme"],
+        "default": "clean lines and smooth gradients",
+        "description": "视觉元素"
+      },
+      "visual_description": {
+        "source": "llm_inference",
+        "inference_prompt": "Describe the wallpaper visual in 5-8 words for the iPhone mockup. Focus on the main visual element. Examples: 'soft flowing abstract shapes', 'delicate nature patterns', 'clean geometric design', 'gentle gradient waves'. Return ONLY the description.",
+        "depends_on": ["visual_elements"],
+        "default": "elegant abstract design",
+        "description": "壁纸视觉描述"
+      },
+      "bg_color": {
+        "source": "llm_inference",
+        "inference_prompt": "Based on the '{color_scheme}' color scheme, suggest a single solid background color for the iPhone mockup. Choose ONE from: white, cream, light gray, soft pink, light blue, beige. Return ONLY the color name.",
+        "depends_on": ["color_scheme"],
+        "default": "light gray",
+        "description": "Mockup背景色"
+      },
+      "lock_time": {
+        "source": "date",
+        "format": "%H:%M",
+        "description": "锁屏时间"
+      },
+      "lock_date": {
+        "source": "date",
+        "format": "%B %d",
+        "description": "锁屏日期"
+      }
+    }
+  }
+}

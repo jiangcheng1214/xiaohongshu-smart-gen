@@ -607,44 +607,148 @@ class Step4PrepareImg(BaseStep):
         try:
             config = self.load_vertical_config(session.vertical)
             cover_config = config.get('cover_config', {})
-            variables_config = cover_config.get('prompt_variables', {})
 
-            if not variables_config:
-                template = cover_config.get('background_prompt_template', '')
-                session.update_step('prepare_img', 'completed', {
-                    'variables': {},
-                    'variables_source': {},
-                    'filled_prompt': template
-                })
-                session.log('info', 'prepare_img', 'No variables to prepare, using template directly')
-                return True
+            # 检查是否有多图配置
+            images_config = cover_config.get('images', [])
 
-            # 读取搜索结果和内容
-            research_data = ""
-            if session.file_exists('research_raw.md'):
-                research_data = session.read_file('research_raw.md')
+            if images_config:
+                # 多图模式：为每个图片准备 prompt
+                return self._prepare_multi_image_prompts(session, cover_config, images_config)
+            else:
+                # 单图模式（原有逻辑）
+                return self._prepare_single_image_prompt(session, cover_config)
 
-            content_data = ""
-            if session.file_exists('content.md'):
-                content_data = session.read_file('content.md')
+        except Exception as e:
+            session.log('error', 'prepare_img', f'Step failed: {str(e)}', exc_info=True)
+            session.update_step('prepare_img', 'failed', {'error': str(e)})
+            return False
 
-            # 获取 title/subtitle
-            gen_data = session.get_step_data('generate')
-            title = gen_data.get('title', '')
-            subtitle = gen_data.get('subtitle', '')
+    def _prepare_single_image_prompt(self, session: XhsSession, cover_config: Dict) -> bool:
+        """准备单图 prompt（原有逻辑）"""
+        variables_config = cover_config.get('prompt_variables', {})
 
-            context = {
-                'topic': session.topic,
-                'vertical': session.vertical,
-                'date': datetime.now().strftime('%b %d').upper(),
-                'title': title,
-                'subtitle': subtitle
-            }
+        if not variables_config:
+            template = cover_config.get('background_prompt_template', '')
+            session.update_step('prepare_img', 'completed', {
+                'variables': {},
+                'variables_source': {},
+                'filled_prompt': template,
+                'image_count': 1,
+                'prompts': [template]
+            })
+            session.log('info', 'prepare_img', 'No variables to prepare, using template directly')
+            return True
 
-            resolved = {}
-            sources = {}
+        # 读取搜索结果和内容
+        research_data = ""
+        if session.file_exists('research_raw.md'):
+            research_data = session.read_file('research_raw.md')
 
-            # 解析变量 - 支持依赖顺序，多轮迭代
+        content_data = ""
+        if session.file_exists('content.md'):
+            content_data = session.read_file('content.md')
+
+        # 获取 title/subtitle
+        gen_data = session.get_step_data('generate')
+        title = gen_data.get('title', '')
+        subtitle = gen_data.get('subtitle', '')
+
+        context = {
+            'topic': session.topic,
+            'vertical': session.vertical,
+            'date': datetime.now().strftime('%b %d').upper(),
+            'title': title,
+            'subtitle': subtitle
+        }
+
+        resolved = {}
+        sources = {}
+
+        # 解析变量 - 支持依赖顺序，多轮迭代
+        max_iterations = 5
+        for iteration in range(max_iterations):
+            updated = False
+            for var_name, var_config in variables_config.items():
+                if var_name in resolved:
+                    continue
+
+                # 检查依赖
+                depends_on = var_config.get('depends_on', [])
+                if not all(dep in resolved for dep in depends_on):
+                    continue
+
+                try:
+                    # 更新 context，包含已解析的变量
+                    update_ctx = {**context, **resolved}
+                    value, source = self._resolve_variable(
+                        var_name, var_config, update_ctx, session, research_data
+                    )
+                    resolved[var_name] = value
+                    sources[var_name] = source
+                    session.log('debug', 'prepare_img', f'Resolved {var_name}',
+                              {'value': str(value)[:50], 'source': source})
+                    updated = True
+                except Exception as e:
+                    session.log('warn', 'prepare_img',
+                              f'Failed to resolve {var_name}: {str(e)}')
+                    resolved[var_name] = var_config.get('default', '')
+                    sources[var_name] = 'default'
+                    updated = True
+
+            if not updated:
+                break
+
+        # 填充模板
+        template = cover_config.get('background_prompt_template', '')
+        for _ in range(3):
+            prev = template
+            for var_name, var_value in resolved.items():
+                template = template.replace(f'{{{var_name}}}', str(var_value))
+            if template == prev:
+                break
+
+        # 更新 session
+        session.update_step('prepare_img', 'completed', {
+            'variables': resolved,
+            'variables_source': sources,
+            'filled_prompt': template,
+            'image_count': 1,
+            'prompts': [template]
+        })
+
+        session.log('success', 'prepare_img', 'Step completed',
+                   {'variables_count': len(resolved)})
+        return True
+
+    def _prepare_multi_image_prompts(self, session: XhsSession, cover_config: Dict,
+                                    images_config: list) -> bool:
+        """准备多图 prompts"""
+        # 获取共享的 variables
+        variables_config = cover_config.get('prompt_variables', {})
+
+        # 读取搜索结果和内容
+        research_data = ""
+        if session.file_exists('research_raw.md'):
+            research_data = session.read_file('research_raw.md')
+
+        # 获取 title/subtitle
+        gen_data = session.get_step_data('generate')
+        title = gen_data.get('title', '')
+        subtitle = gen_data.get('subtitle', '')
+
+        context = {
+            'topic': session.topic,
+            'vertical': session.vertical,
+            'date': datetime.now().strftime('%b %d').upper(),
+            'title': title,
+            'subtitle': subtitle
+        }
+
+        resolved = {}
+        sources = {}
+
+        # 解析共享变量
+        if variables_config:
             max_iterations = 5
             for iteration in range(max_iterations):
                 updated = False
@@ -652,13 +756,11 @@ class Step4PrepareImg(BaseStep):
                     if var_name in resolved:
                         continue
 
-                    # 检查依赖
                     depends_on = var_config.get('depends_on', [])
                     if not all(dep in resolved for dep in depends_on):
                         continue
 
                     try:
-                        # 更新 context，包含已解析的变量
                         update_ctx = {**context, **resolved}
                         value, source = self._resolve_variable(
                             var_name, var_config, update_ctx, session, research_data
@@ -678,30 +780,43 @@ class Step4PrepareImg(BaseStep):
                 if not updated:
                     break
 
-            # 填充模板
-            template = cover_config.get('background_prompt_template', '')
+        # 为每个图片填充 prompt
+        prompts = []
+        image_configs = []
+
+        for img_config in images_config:
+            template = img_config.get('background_prompt_template', '')
+            img_id = img_config.get('id', f'img_{len(prompts)}')
+
+            # 填充模板变量
+            filled_template = template
             for _ in range(3):
-                prev = template
+                prev = filled_template
                 for var_name, var_value in resolved.items():
-                    template = template.replace(f'{{{var_name}}}', str(var_value))
-                if template == prev:
+                    filled_template = filled_template.replace(f'{{{var_name}}}', str(var_value))
+                if filled_template == prev:
                     break
 
-            # 更新 session
-            session.update_step('prepare_img', 'completed', {
-                'variables': resolved,
-                'variables_source': sources,
-                'filled_prompt': template
+            prompts.append(filled_template)
+            image_configs.append({
+                'id': img_id,
+                'name': img_config.get('name', img_id),
+                'aspect_ratio': img_config.get('aspect_ratio', '1:1'),
+                'is_cover': img_config.get('is_cover', False)
             })
 
-            session.log('success', 'prepare_img', 'Step completed',
-                       {'variables_count': len(resolved)})
-            return True
+        # 更新 session
+        session.update_step('prepare_img', 'completed', {
+            'variables': resolved,
+            'variables_source': sources,
+            'image_count': len(prompts),
+            'prompts': prompts,
+            'image_configs': image_configs
+        })
 
-        except Exception as e:
-            session.log('error', 'prepare_img', f'Step failed: {str(e)}', exc_info=True)
-            session.update_step('prepare_img', 'failed', {'error': str(e)})
-            return False
+        session.log('success', 'prepare_img', 'Multi-image Step completed',
+                   {'image_count': len(prompts), 'variables_count': len(resolved)})
+        return True
 
     def _resolve_variable(self, var_name: str, var_config: Dict,
                          context: Dict, session: XhsSession,
@@ -1125,40 +1240,111 @@ class Step5GenImg(BaseStep):
 
             # 获取填充好的 prompt
             prepare_data = session.get_step_data('prepare_img')
-            filled_prompt = prepare_data.get('filled_prompt', '')
 
-            if not filled_prompt:
-                raise ValueError('No prompt available for image generation')
+            # 检查是否是多图模式
+            prompts = prepare_data.get('prompts', [])
+            image_configs = prepare_data.get('image_configs', [])
 
-            output_file = session.get_file_path('cover_bg.png')
-            api_key = get_api_key()
-
-            session.log('info', 'gen_img', f'Generating image: {filled_prompt[:100]}...')
-
-            generate_image(
-                prompt=filled_prompt,
-                output_path=output_file,
-                api_key=api_key,
-                resolution='1K'
-            )
-
-            file_size = output_file.stat().st_size
-
-            session.update_step('gen_img', 'completed', {
-                'prompt_used': filled_prompt[:2000],
-                'prompt_full_length': len(filled_prompt),
-                'output_file': 'cover_bg.png',
-                'file_size': file_size
-            })
-
-            session.log('success', 'gen_img', 'Step completed',
-                       {'file_size': file_size})
-            return True
+            if prompts and len(prompts) > 1:
+                # 多图模式
+                return self._generate_multi_images(session, prompts, image_configs)
+            else:
+                # 单图模式（原有逻辑）
+                return self._generate_single_image(session, prepare_data)
 
         except Exception as e:
             session.log('error', 'gen_img', f'Step failed: {str(e)}', exc_info=True)
             session.update_step('gen_img', 'failed', {'error': str(e)})
             return False
+
+    def _generate_single_image(self, session: XhsSession, prepare_data: Dict) -> bool:
+        """生成单图（原有逻辑）"""
+        filled_prompt = prepare_data.get('filled_prompt', '')
+
+        if not filled_prompt:
+            raise ValueError('No prompt available for image generation')
+
+        output_file = session.get_file_path('cover_bg.png')
+        api_key = get_api_key()
+
+        session.log('info', 'gen_img', f'Generating image: {filled_prompt[:100]}...')
+
+        generate_image(
+            prompt=filled_prompt,
+            output_path=output_file,
+            api_key=api_key,
+            resolution='1K'
+        )
+
+        file_size = output_file.stat().st_size
+
+        session.update_step('gen_img', 'completed', {
+            'prompt_used': filled_prompt[:2000],
+            'prompt_full_length': len(filled_prompt),
+            'output_files': ['cover_bg.png'],
+            'file_sizes': [file_size]
+        })
+
+        session.log('success', 'gen_img', 'Step completed',
+                   {'file_size': file_size})
+        return True
+
+    def _generate_multi_images(self, session: XhsSession, prompts: list,
+                              image_configs: list) -> bool:
+        """生成多图"""
+        api_key = get_api_key()
+        output_files = []
+        file_sizes = []
+        reference_image = None  # 参考图片路径
+
+        for idx, prompt in enumerate(prompts):
+            output_file = session.get_file_path(f'cover_bg_{idx}.png')
+            output_files.append(f'cover_bg_{idx}.png')
+
+            # 获取 aspect_ratio
+            aspect_ratio = '1:1'
+            if idx < len(image_configs):
+                aspect_ratio = image_configs[idx].get('aspect_ratio', '1:1')
+
+            session.log('info', 'gen_img',
+                       f'Generating image {idx + 1}/{len(prompts)}: {prompt[:100]}...')
+
+            try:
+                generate_image(
+                    prompt=prompt,
+                    output_path=output_file,
+                    api_key=api_key,
+                    resolution='1K',
+                    reference_image=reference_image  # 传入参考图片
+                )
+                file_size = output_file.stat().st_size
+                file_sizes.append(file_size)
+                session.log('debug', 'gen_img',
+                           f'Image {idx} generated: {file_size} bytes')
+
+                # 第一张图片生成成功后，作为后续图片的参考
+                if idx == 0 and file_size > 0:
+                    reference_image = output_file
+                    session.log('info', 'gen_img',
+                               'First image will be used as reference for subsequent images')
+
+            except Exception as e:
+                session.log('error', 'gen_img', f'Failed to generate image {idx}: {str(e)}')
+                # 创建一个占位文件，避免后续步骤失败
+                output_file.write_text(f'Image generation failed: {str(e)}')
+                file_sizes.append(0)
+
+        session.update_step('gen_img', 'completed', {
+            'image_count': len(prompts),
+            'output_files': output_files,
+            'file_sizes': file_sizes,
+            'image_configs': image_configs,
+            'used_reference_image': reference_image is not None
+        })
+
+        session.log('success', 'gen_img', 'Multi-image generation completed',
+                   {'image_count': len(prompts)})
+        return True
 
 
 # =============================================================================
@@ -1174,34 +1360,113 @@ class Step6Overlay(BaseStep):
         session.update_step('overlay', 'in_progress')
 
         try:
-            # 检查输入文件
-            input_file = session.get_file_path('cover_bg.png')
-            if not input_file.exists():
-                raise FileNotFoundError('cover_bg.png not found')
-
             config = self.load_vertical_config(session.vertical)
             cover_config = config.get('cover_config', {})
-            logo_file = cover_config.get('logo_file', '')
 
-            # 查找 logo
-            logo_path = self._find_logo(logo_file, session.vertical)
+            # 获取生成步骤的数据
+            gen_data = session.get_step_data('gen_img')
+            output_files = gen_data.get('output_files', [])
+            image_count = gen_data.get('image_count', 1)
 
-            output_file = session.get_file_path('cover.png')
+            if image_count > 1 and len(output_files) > 1:
+                # 多图模式
+                return self._overlay_multi_images(session, output_files, cover_config)
+            else:
+                # 单图模式（原有逻辑）
+                return self._overlay_single_image(session, cover_config)
+
+        except Exception as e:
+            session.log('error', 'overlay', f'Step failed: {str(e)}', exc_info=True)
+            session.update_step('overlay', 'failed', {'error': str(e)})
+            return False
+
+    def _overlay_single_image(self, session: XhsSession, cover_config: Dict) -> bool:
+        """单图 logo 叠加（原有逻辑）"""
+        # 检查输入文件
+        input_file = session.get_file_path('cover_bg.png')
+        if not input_file.exists():
+            raise FileNotFoundError('cover_bg.png not found')
+
+        logo_file = cover_config.get('logo_file', '')
+
+        # 查找 logo
+        logo_path = self._find_logo(logo_file, session.vertical)
+
+        output_file = session.get_file_path('cover.png')
+
+        if not logo_path or not logo_path.exists():
+            # 没有 logo，直接复制
+            shutil.copy2(input_file, output_file)
+            file_size = output_file.stat().st_size
+
+            session.update_step('overlay', 'completed', {
+                'logo_used': 'none',
+                'output_files': ['cover.png'],
+                'file_sizes': [file_size]
+            })
+            session.log('info', 'overlay', 'No logo found, using original background')
+            return True
+
+        # 使用 ImageMagick 添加 logo (尺寸和边距都是原来的2倍)
+        result = subprocess.run([
+            'magick', str(input_file),
+            '(', str(logo_path), '-resize', '24%', ')',
+            '-geometry', '+20+20',
+            '-composite', str(output_file)
+        ], capture_output=True, text=True)
+
+        if result.returncode != 0:
+            # 失败，使用原始背景
+            shutil.copy2(input_file, output_file)
+            file_size = output_file.stat().st_size
+
+            session.update_step('overlay', 'completed', {
+                'logo_used': f'{logo_path.name} (overlay failed)',
+                'output_files': ['cover.png'],
+                'file_sizes': [file_size]
+            })
+            session.log('warn', 'overlay', 'Logo overlay failed, using original background')
+            return True
+
+        file_size = output_file.stat().st_size
+
+        session.update_step('overlay', 'completed', {
+            'logo_used': logo_path.name,
+            'output_files': ['cover.png'],
+            'file_sizes': [file_size]
+        })
+
+        session.log('success', 'overlay', 'Step completed')
+        return True
+
+    def _overlay_multi_images(self, session: XhsSession, output_files: list,
+                             cover_config: Dict) -> bool:
+        """多图 logo 叠加"""
+        logo_file = cover_config.get('logo_file', '')
+        logo_path = self._find_logo(logo_file, session.vertical)
+
+        final_output_files = []
+        file_sizes = []
+
+        for idx, bg_filename in enumerate(output_files):
+            input_file = session.get_file_path(bg_filename)
+            output_file = session.get_file_path(f'cover_{idx}.png')
+            final_output_files.append(f'cover_{idx}.png')
+
+            if not input_file.exists() or input_file.stat().st_size == 0:
+                # 跳过无效文件
+                file_sizes.append(0)
+                continue
 
             if not logo_path or not logo_path.exists():
                 # 没有 logo，直接复制
                 shutil.copy2(input_file, output_file)
                 file_size = output_file.stat().st_size
+                file_sizes.append(file_size)
+                session.log('debug', 'overlay', f'Image {idx}: no logo, copied')
+                continue
 
-                session.update_step('overlay', 'completed', {
-                    'logo_used': 'none',
-                    'output_file': 'cover.png',
-                    'file_size': file_size
-                })
-                session.log('info', 'overlay', 'No logo found, using original background')
-                return True
-
-            # 使用 ImageMagick 添加 logo (尺寸和边距都是原来的2倍)
+            # 使用 ImageMagick 添加 logo
             result = subprocess.run([
                 'magick', str(input_file),
                 '(', str(logo_path), '-resize', '24%', ')',
@@ -1212,31 +1477,22 @@ class Step6Overlay(BaseStep):
             if result.returncode != 0:
                 # 失败，使用原始背景
                 shutil.copy2(input_file, output_file)
-                file_size = output_file.stat().st_size
-
-                session.update_step('overlay', 'completed', {
-                    'logo_used': f'{logo_path.name} (overlay failed)',
-                    'output_file': 'cover.png',
-                    'file_size': file_size
-                })
-                session.log('warn', 'overlay', 'Logo overlay failed, using original background')
-                return True
+                session.log('warn', 'overlay', f'Image {idx}: logo overlay failed')
 
             file_size = output_file.stat().st_size
+            file_sizes.append(file_size)
+            session.log('debug', 'overlay', f'Image {idx}: overlay complete, size={file_size}')
 
-            session.update_step('overlay', 'completed', {
-                'logo_used': logo_path.name,
-                'output_file': 'cover.png',
-                'file_size': file_size
-            })
+        session.update_step('overlay', 'completed', {
+            'logo_used': logo_path.name if logo_path else 'none',
+            'image_count': len(final_output_files),
+            'output_files': final_output_files,
+            'file_sizes': file_sizes
+        })
 
-            session.log('success', 'overlay', 'Step completed')
-            return True
-
-        except Exception as e:
-            session.log('error', 'overlay', f'Step failed: {str(e)}', exc_info=True)
-            session.update_step('overlay', 'failed', {'error': str(e)})
-            return False
+        session.log('success', 'overlay', 'Multi-image overlay completed',
+                   {'image_count': len(final_output_files)})
+        return True
 
     def _find_logo(self, logo_file: str, vertical: str) -> Optional[Path]:
         """查找 logo 文件"""
@@ -1286,9 +1542,18 @@ class Step7Deliver(BaseStep):
             # 复制文件到导出目录
             (export_dir / 'content.md').write_text(content, encoding='utf-8')
 
-            cover_src = session.get_file_path('cover.png')
-            if cover_src.exists():
-                shutil.copy2(cover_src, export_dir / 'cover.png')
+            # 检查是否有多图
+            overlay_data = session.get_step_data('overlay')
+            output_files = overlay_data.get('output_files', [])
+            image_count = overlay_data.get('image_count', 1)
+
+            cover_images = []
+            for idx, filename in enumerate(output_files):
+                src = session.get_file_path(filename)
+                if src.exists() and src.stat().st_size > 0:
+                    dest = export_dir / filename
+                    shutil.copy2(src, dest)
+                    cover_images.append(dest)
 
             session.log('info', 'deliver', f'Files archived to: {export_dir}')
 
@@ -1299,29 +1564,21 @@ class Step7Deliver(BaseStep):
 
             if bot_token and chat_id:
                 try:
-                    if cover_src.exists():
-                        result = subprocess.run([
-                            'curl', '-s', '-X', 'POST',
-                            f'https://api.telegram.org/bot{bot_token}/sendPhoto',
-                            '-F', f'chat_id={chat_id}',
-                            '-F', f'photo=@{export_dir / "cover.png"}',
-                            '-F', f'caption={content}'
-                        ], capture_output=True, text=True, timeout=30)
+                    if len(cover_images) > 1:
+                        # 多图模式：使用 sendMediaGroup
+                        telegram_sent = self._send_media_group(
+                            bot_token, chat_id, cover_images, content, session
+                        )
+                    elif len(cover_images) == 1:
+                        # 单图模式：使用 sendPhoto
+                        telegram_sent = self._send_photo(
+                            bot_token, chat_id, cover_images[0], content, session
+                        )
                     else:
-                        result = subprocess.run([
-                            'curl', '-s', '-X', 'POST',
-                            f'https://api.telegram.org/bot{bot_token}/sendMessage',
-                            '-d', f'chat_id={chat_id}',
-                            '-d', f'text={content}'
-                        ], capture_output=True, text=True, timeout=30)
-
-                    if result.returncode == 0:
-                        try:
-                            resp = json.loads(result.stdout)
-                            message_id = str(resp.get('result', {}).get('message_id', ''))
-                            telegram_sent = True
-                        except:
-                            pass
+                        # 无图：使用 sendMessage
+                        telegram_sent = self._send_message(
+                            bot_token, chat_id, content, session
+                        )
 
                     if telegram_sent:
                         session.log('success', 'deliver', 'Telegram sent successfully')
@@ -1336,7 +1593,8 @@ class Step7Deliver(BaseStep):
             session.update_step('deliver', 'completed', {
                 'export_dir': str(export_dir),
                 'telegram_sent': telegram_sent,
-                'telegram_message_id': message_id
+                'telegram_message_id': message_id,
+                'image_count': len(cover_images)
             })
 
             session.log('success', 'deliver', 'Step completed')
@@ -1350,6 +1608,87 @@ class Step7Deliver(BaseStep):
                 'error': str(e)
             })
             return True  # 文件已归档，返回 True
+
+    def _send_photo(self, bot_token: str, chat_id: str, photo_path: Path,
+                   content: str, session: XhsSession) -> bool:
+        """发送单张图片"""
+        result = subprocess.run([
+            'curl', '-s', '-X', 'POST',
+            f'https://api.telegram.org/bot{bot_token}/sendPhoto',
+            '-F', f'chat_id={chat_id}',
+            '-F', f'photo=@{photo_path}',
+            '-F', f'caption={content}'
+        ], capture_output=True, text=True, timeout=30)
+
+        if result.returncode == 0:
+            try:
+                resp = json.loads(result.stdout)
+                if resp.get('ok'):
+                    return True
+            except:
+                pass
+        return False
+
+    def _send_media_group(self, bot_token: str, chat_id: str,
+                         photo_paths: list, content: str, session: XhsSession) -> bool:
+        """发送图片组（多图）"""
+        # 构建 media 数组
+        media_array = []
+        for idx, photo_path in enumerate(photo_paths):
+            if idx == 0:
+                # 第一张图带 caption
+                media_array.append({
+                    "type": "photo",
+                    "media": f"attach://photo{idx}",
+                    "caption": content
+                })
+            else:
+                media_array.append({
+                    "type": "photo",
+                    "media": f"attach://photo{idx}"
+                })
+
+        # 构建命令
+        cmd = [
+            'curl', '-s', '-X', 'POST',
+            f'https://api.telegram.org/bot{bot_token}/sendMediaGroup',
+            '-F', f'chat_id={chat_id}',
+            '-F', f'media={json.dumps(media_array)}'
+        ]
+
+        # 添加图片文件
+        for idx, photo_path in enumerate(photo_paths):
+            cmd.extend(['-F', f'photo{idx}=@{photo_path}'])
+
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+
+        if result.returncode == 0:
+            try:
+                resp = json.loads(result.stdout)
+                if resp.get('ok'):
+                    return True
+            except:
+                pass
+        return False
+
+    def _send_message(self, bot_token: str, chat_id: str,
+                     content: str, session: XhsSession) -> bool:
+        """发送纯文本消息"""
+        result = subprocess.run([
+            'curl', '-s', '-X', 'POST',
+            f'https://api.telegram.org/bot{bot_token}/sendMessage',
+            '-d', f'chat_id={chat_id}',
+            '-d', f'text={content}'
+        ], capture_output=True, text=True, timeout=30)
+
+        if result.returncode == 0:
+            try:
+                resp = json.loads(result.stdout)
+                if resp.get('ok'):
+                    return True
+            except:
+                pass
+        return False
 
     def _get_telegram_credentials(self) -> Tuple[str, str]:
         """获取 Telegram 凭据"""
