@@ -29,6 +29,10 @@ class Session:
     content: str | None = None
     cover_path: str | None = None
     images_dir: str | None = None
+    images_updated_at: str | None = None
+    images_count: int | None = None
+    content_updated_at: str | None = None
+    cover_updated_at: str | None = None
     debug: dict | None = None
 
     def __post_init__(self):

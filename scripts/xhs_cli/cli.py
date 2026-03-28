@@ -11,6 +11,8 @@ from .config import Config
 from .core.session import Session, SessionManager
 from .core.content import ContentGenerator
 from .core.cover import CoverGenerator
+from .core.images import ImageSearcher
+from .core.telegram import TelegramSender
 from .lib.paths import PathManager
 
 
@@ -83,7 +85,23 @@ def cmd_cover(topic: str, config: Config, session_mgr: SessionManager) -> int:
         return 1
 
 
-def cmd_all(vertical: str, topic: str, config: Config, session_mgr: SessionManager) -> int:
+def cmd_images(topic: str, config: Config, session_mgr: SessionManager, count: int = 3) -> int:
+    """搜索参考图片"""
+    session = session_mgr.find_session_by_topic(topic)
+    if not session:
+        print(f"# ✗ 没有找到session: {topic}", file=sys.stderr)
+        return 1
+
+    searcher = ImageSearcher(config, PathManager(config))
+    try:
+        images = searcher.search(session, count)
+        return 0
+    except Exception as e:
+        print(f"# ✗ 图片搜索失败: {e}", file=sys.stderr)
+        return 1
+
+
+def cmd_all(vertical: str, topic: str, config: Config, session_mgr: SessionManager, send: bool = False) -> int:
     """执行全部步骤"""
     print("", file=sys.stderr)
     print("========================================", file=sys.stderr)
@@ -143,6 +161,41 @@ def cmd_all(vertical: str, topic: str, config: Config, session_mgr: SessionManag
     print("", file=sys.stderr)
     print(f"✅ Session: {session_dir}", file=sys.stderr)
     print(session_dir)
+
+    # 可选：发送到 Telegram
+    if send:
+        print("", file=sys.stderr)
+        content_full = (session_dir / "content.md").read_text(encoding="utf-8")
+        title = session.title or session.topic
+        sender = TelegramSender(config)
+        sender.send_session(session_dir, title, content_full)
+
+    return 0
+
+
+def cmd_send(topic: str, config: Config, session_mgr: SessionManager) -> int:
+    """发送到 Telegram"""
+    session = session_mgr.find_session_by_topic(topic)
+    if not session:
+        print(f"# ✗ 没有找到session: {topic}", file=sys.stderr)
+        return 1
+
+    session_dir = session_mgr.get_session_dir(session)
+
+    # 检查必要文件
+    content_file = session_dir / "content.md"
+    if not content_file.exists():
+        print(f"# ✗ 内容文件不存在: {content_file}", file=sys.stderr)
+        print(f"# 请先运行 --content 或 --all", file=sys.stderr)
+        return 1
+
+    # 读取内容
+    content_full = content_file.read_text(encoding="utf-8")
+    title = session.title or session.topic
+
+    # 发送
+    sender = TelegramSender(config)
+    sender.send_session(session_dir, title, content_full)
 
     return 0
 
@@ -232,10 +285,14 @@ def main() -> int:
                 return cmd_info(topic, config, session_mgr)
             elif action == "--content":
                 return cmd_content(topic, config, session_mgr)
+            elif action == "--images":
+                return cmd_images(topic, config, session_mgr)
             elif action == "--cover":
                 return cmd_cover(topic, config, session_mgr)
             elif action == "--all":
                 return cmd_all(vertical, topic, config, session_mgr)
+            elif action == "--send":
+                return cmd_send(topic, config, session_mgr)
             else:
                 print(f"# 暂未实现的action: {action}", file=sys.stderr)
                 return 1
@@ -291,7 +348,7 @@ def main_do() -> int:
     parser.add_argument("vertical", help="垂类")
     parser.add_argument("topic", help="话题")
     parser.add_argument("action", nargs="?", default="--all",
-                        choices=["--init", "--content", "--cover", "--info", "--all", "--send"],
+                        choices=["--init", "--content", "--images", "--cover", "--info", "--all", "--send"],
                         help="执行的动作")
 
     args = parser.parse_args()
@@ -304,14 +361,14 @@ def main_do() -> int:
         return cmd_info(args.topic, config, session_mgr)
     elif args.action == "--content":
         return cmd_content(args.topic, config, session_mgr)
+    elif args.action == "--images":
+        return cmd_images(args.topic, config, session_mgr)
     elif args.action == "--cover":
         return cmd_cover(args.topic, config, session_mgr)
     elif args.action == "--all":
         return cmd_all(args.vertical, args.topic, config, session_mgr)
     elif args.action == "--send":
-        print(f"# 暂未实现的action: --send", file=sys.stderr)
-        print(f"# 提示: 使用 'xhs-gen check-config' 检查配置", file=sys.stderr)
-        return 1
+        return cmd_send(args.topic, config, session_mgr)
     else:
         print(f"# 暂未实现的action: {args.action}", file=sys.stderr)
         print(f"# 提示: 使用 'xhs-gen check-config' 检查配置", file=sys.stderr)

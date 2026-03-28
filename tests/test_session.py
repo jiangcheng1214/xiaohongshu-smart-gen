@@ -273,5 +273,148 @@ class TestSessionManager(unittest.TestCase):
         self.assertLessEqual(len(sanitized), 20)
 
 
+class TestSessionManagerAdditional(unittest.TestCase):
+    """额外的 SessionManager 测试，用于提高覆盖率"""
+
+    def setUp(self):
+        """设置测试环境"""
+        self.temp_dir = tempfile.mkdtemp()
+        self.workspace = Path(self.temp_dir) / "workspace"
+        self.workspace.mkdir()
+
+    def tearDown(self):
+        """清理测试环境"""
+        shutil.rmtree(self.temp_dir)
+
+    def test_load_session_nonexistent_dir(self):
+        """测试加载不存在的 session 目录"""
+        with patch('scripts.xhs_cli.config.Config.get_workspace', return_value=self.workspace):
+            config = Config()
+            manager = SessionManager(config)
+
+            result = manager.load_session("nonexistent_session")
+            self.assertIsNone(result)
+
+    def test_load_session_missing_json_file(self):
+        """测试 session 目录存在但 session.json 不存在"""
+        session_dir = self.workspace / "xhs_session_test"
+        session_dir.mkdir()
+
+        with patch('scripts.xhs_cli.config.Config.get_workspace', return_value=self.workspace):
+            config = Config()
+            manager = SessionManager(config)
+
+            result = manager.load_session("test")
+            self.assertIsNone(result)
+
+    def test_find_session_workspace_not_exist(self):
+        """测试 workspace 不存在时查找 session"""
+        non_existent = Path(self.temp_dir) / "nonexistent"
+
+        with patch('scripts.xhs_cli.config.Config.get_workspace', return_value=non_existent):
+            config = Config()
+            manager = SessionManager(config)
+
+            result = manager.find_session_by_topic("测试")
+            self.assertIsNone(result)
+
+    def test_find_session_with_invalid_json(self):
+        """测试 session JSON 文件损坏的处理"""
+        # 创建一个 session 目录，但 session.json 内容无效
+        session_dir = self.workspace / "xhs_session_test_topic"
+        session_dir.mkdir()
+        session_file = session_dir / "session.json"
+        session_file.write_text("invalid json content")
+
+        with patch('scripts.xhs_cli.config.Config.get_workspace', return_value=self.workspace):
+            config = Config()
+            manager = SessionManager(config)
+
+            result = manager.find_session_by_topic("test_topic")
+            # 应该返回 None 或抛出异常
+            self.assertIsNone(result)
+
+    def test_list_sessions_workspace_not_exist(self):
+        """测试 workspace 不存在时列出 sessions"""
+        non_existent = Path(self.temp_dir) / "nonexistent"
+
+        with patch('scripts.xhs_cli.config.Config.get_workspace', return_value=non_existent):
+            config = Config()
+            manager = SessionManager(config)
+
+            result = manager.list_sessions()
+            self.assertEqual(result, [])
+
+    def test_list_sessions_with_invalid_json(self):
+        """测试列出 sessions 时忽略无效的 JSON"""
+        # 创建一些 session 目录
+        for i in range(3):
+            session_dir = self.workspace / f"xhs_session_{i}_topic"
+            session_dir.mkdir()
+
+        # 创建一个有效的 session
+        valid_session_dir = self.workspace / "xhs_session_valid_topic"
+        valid_session_dir.mkdir()
+
+        # 添加一个无效的 JSON
+        invalid_dir = self.workspace / "xhs_session_invalid_topic"
+        invalid_dir.mkdir()
+        (invalid_dir / "session.json").write_text("invalid json")
+
+        with patch('scripts.xhs_cli.config.Config.get_workspace', return_value=self.workspace):
+            config = Config()
+            manager = SessionManager(config)
+
+            # 创建一个有效的 session
+            manager.create_session("finance", "有效话题")
+
+            sessions = manager.list_sessions()
+            # 应该至少有一个有效 session
+            self.assertGreaterEqual(len(sessions), 1)
+
+    def test_get_session_dir(self):
+        """测试获取 session 目录"""
+        with patch('scripts.xhs_cli.config.Config.get_workspace', return_value=self.workspace):
+            config = Config()
+            manager = SessionManager(config)
+
+            session = manager.create_session("finance", "测试")
+            session_dir = manager.get_session_dir(session)
+
+            self.assertEqual(session_dir, self.workspace / session.id)
+
+
+class TestSessionAdditional(unittest.TestCase):
+    """额外的 Session 测试"""
+
+    def test_session_set_status(self):
+        """测试设置状态"""
+        session = Session(
+            id="test",
+            vertical="finance",
+            topic="测试",
+            safe_topic="test",
+            created_at="2024-01-01T00:00:00Z"
+        )
+
+        session.set_status("cover_generated")
+        self.assertEqual(session.status, "cover_generated")
+
+    def test_session_set_status_content_generated(self):
+        """测试设置状态为内容已生成"""
+        session = Session(
+            id="test",
+            vertical="finance",
+            topic="测试",
+            safe_topic="test",
+            created_at="2024-01-01T00:00:00Z"
+        )
+
+        session.set_status("content_generated")
+        self.assertEqual(session.status, "content_generated")
+        session.set_status("sent")
+        self.assertEqual(session.status, "sent")
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -2,18 +2,18 @@
 name: xiaohongshu-smart-gen
 description: 小红书多垂类内容智能生成技能。支持金融、美妆、科技等垂类，从话题研究到内容创作、封面生成的全链路自动化。
 license: MIT
-compatibility: Requires ImageMagick, Python 3, uv, nano-banana-pro skill, and GEMINI_API_KEY. Works on macOS/Linux.
-argument-hint: "<vertical> <topic> [--init|--content|--cover|--info|--all]"
+compatibility: Requires Python 3, requests, nano-banana-pro skill, and GEMINI_API_KEY. Works on macOS/Linux/Windows.
+argument-hint: "<vertical> <topic> [--init|--content|--images|--cover|--info|--all|--send]"
 disable-model-invocation: false
 user-invocable: true
 metadata:
   openclaw:
     requires:
-      bins: [python3, convert]
+      bins: [python3]
       skills: [nano-banana-pro]
       env: [GEMINI_API_KEY]
     emoji: "\U0001F4A1"
-    os: [darwin, linux]
+    os: [darwin, linux, windows]
 ---
 
 # 小红书智能内容生成技能
@@ -78,6 +78,7 @@ PYTHONPATH=. python -m scripts.xhs_cli finance "PLTR还能追吗" --all
 # 分步执行
 PYTHONPATH=. python -m scripts.xhs_cli finance "PLTR" --init     # 初始化
 PYTHONPATH=. python -m scripts.xhs_cli finance "PLTR" --content  # 生成内容
+PYTHONPATH=. python -m scripts.xhs_cli finance "PLTR" --images   # 搜索参考图片
 PYTHONPATH=. python -m scripts.xhs_cli finance "PLTR" --cover    # 生成封面
 PYTHONPATH=. python -m scripts.xhs_cli finance "PLTR" --info     # 查看信息
 ```
@@ -98,13 +99,26 @@ PYTHONPATH=. python -m scripts.xhs_cli list
 PYTHONPATH=. python -m scripts.xhs_cli check-config
 ```
 
-### xhs-do 快捷方式
+### xhs-do 快捷方式（跨平台）
 
 ```bash
-# 使用快捷包装器（绕过 AI 解析）
-~/.openclaw/bin/xhs-do finance "PLTR还能追吗"
-~/.openclaw/bin/xhs-do beauty "雅诗兰黛DW值得买吗"
-~/.openclaw/bin/xhs-do tech "iPhone 16 Pro评测"
+# 跨平台 Python 入口（推荐）
+cd ~/.openclaw/skills/xiaohongshu-smart-gen
+python scripts/xhs_do.py finance "PLTR还能追吗"
+python scripts/xhs_do.py beauty "雅诗兰黛DW值得买吗"
+python scripts/xhs_do.py tech "iPhone 16 Pro评测"
+
+# 生成并发送到 Telegram
+python scripts/xhs_do.py finance "PLTR" --all --send
+
+# 仅发送已有内容到 Telegram
+python scripts/xhs_do.py finance "PLTR" --send
+```
+
+**Windows 用户**：
+```powershell
+cd ~/.openclaw/skills/xiaohongshu-smart-gen
+python scripts\xhs_do.py finance "PLTR还能追吗"
 ```
 
 ---
@@ -186,9 +200,11 @@ xhs draft create --type image --data-file /tmp/xhs_data.json --cover "$COVER"
 | `<topic>` | 内容主题（必需） | - |
 | `--init` | 初始化新 session | - |
 | `--content` | 生成文字内容 | - |
+| `--images` | 搜索参考图片 | - |
 | `--cover` | 生成封面图 | - |
 | `--info` | 显示 session 信息 | - |
 | `--all` | 执行全部步骤（默认） | - |
+| `--send` | 发送已有内容到 Telegram | - |
 
 ---
 
@@ -197,8 +213,31 @@ xhs draft create --type image --data-file /tmp/xhs_data.json --cover "$COVER"
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
 | `GEMINI_API_KEY` | AI 图片生成 API Key | 从 openclaw.json 读取 |
-| `TELEGRAM_ACCOUNT` | Telegram bot 账号 | default |
-| `TELEGRAM_TARGET` | 目标 chat ID | 自动回复 |
+| `TELEGRAM_BOT_TOKEN` | Telegram Bot Token | 从 openclaw.json 读取 |
+| `TELEGRAM_CHAT_ID` | 目标 chat ID | 自动获取 |
+
+---
+
+## Telegram 发送
+
+使用 `--send` 参数自动发送内容到 Telegram：
+
+```bash
+# 生成并发送
+python scripts/xhs_do.py finance "PLTR" --all --send
+
+# 仅发送已有内容
+python scripts/xhs_do.py finance "PLTR" --send
+```
+
+发送前会自动：
+1. 整理文件到导出目录（跨平台）
+2. 发送封面图 + 内容文字
+3. 如果封面不存在，仅发送文字
+
+**导出目录位置**：
+- macOS/Linux: `~/Desktop/Xiaohongshu_Exports/`
+- Windows: `%USERPROFILE%\Desktop\Xiaohongshu_Exports\`
 
 ---
 
