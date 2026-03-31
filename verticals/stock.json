@@ -176,12 +176,14 @@
       "price": {
         "source": "web_search",
         "query": "{stock_code} stock price today investing.com",
-        "default": "",
+        "extraction_mode": "regex",
+        "regex_pattern": "\\$?\\s*(\\d{1,5}\\.\\d{2})",
+        "default": "---",
         "description": "Get the current stock price for {stock_code}. Return ONLY the price in format of float value with dollar sign."
       },
       "hook_point": {
         "source": "from_content",
-        "description": "精彩总结（8-15字）"
+        "description": "精彩总结（8-15字）, 语义完整, 不能被截断"
       },
       "product_name": {
         "source": "llm_inference",
