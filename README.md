@@ -33,7 +33,7 @@
 <br />
 <b>美妆护肤</b>
 <td align="center" width="50%">
-<img src="assets/demo/finance_demo.png" alt="金融分析" />
+<img src="assets/demo/wallpaper_demo.png" alt="壁纸分享" />
 <br />
 <b>金融投资</b>
 </td>
@@ -46,7 +46,7 @@
 <b>数码科技</b>
 </td>
 <td align="center" width="50%">
-<img src="assets/demo/wallpaper_demo.png" alt="壁纸分享" />
+<img src="assets/demo/finance_demo.png" alt="金融分析" />
 <br />
 <b>壁纸分享</b>
 </td>
