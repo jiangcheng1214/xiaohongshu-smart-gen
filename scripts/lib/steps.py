@@ -2356,31 +2356,45 @@ class Step5GenImg(BaseStep):
             session.log('info', 'gen_img',
                        f'Generating image {idx + 1}/{len(prompts)}: {prompt[:100]}...')
 
-            try:
-                generate_image(
-                    prompt=prompt,
-                    output_path=output_file,
-                    api_key=api_key,
-                    resolution='1K',
-                    reference_image=reference_image,  # 传入参考图片
-                    aspect_ratio=aspect_ratio  # 传入宽高比
-                )
-                file_size = output_file.stat().st_size
-                file_sizes.append(file_size)
-                session.log('debug', 'gen_img',
-                           f'Image {idx} generated: {file_size} bytes')
+            # 添加重试机制处理临时性 API 错误
+            max_retries = 2
+            for attempt in range(max_retries):
+                try:
+                    generate_image(
+                        prompt=prompt,
+                        output_path=output_file,
+                        api_key=api_key,
+                        resolution='1K',
+                        reference_image=reference_image,  # 传入参考图片
+                        aspect_ratio=aspect_ratio  # 传入宽高比
+                    )
+                    file_size = output_file.stat().st_size
+                    file_sizes.append(file_size)
+                    session.log('debug', 'gen_img',
+                               f'Image {idx} generated: {file_size} bytes')
 
-                # 第一张图片生成成功后，作为后续图片的参考
-                if idx == 0 and file_size > 0:
-                    reference_image = output_file
-                    session.log('info', 'gen_img',
-                               'First image will be used as reference for subsequent images')
+                    # 第一张图片生成成功后，作为后续图片的参考
+                    if idx == 0 and file_size > 0:
+                        reference_image = output_file
+                        session.log('info', 'gen_img',
+                                   'First image will be used as reference for subsequent images')
+                    break  # 成功，跳出重试循环
 
-            except Exception as e:
-                session.log('error', 'gen_img', f'Failed to generate image {idx}: {str(e)}')
-                # 创建一个占位文件，避免后续步骤失败
-                output_file.write_text(f'Image generation failed: {str(e)}')
-                file_sizes.append(0)
+                except Exception as e:
+                    error_msg = str(e)
+                    is_retryable = any(code in error_msg for code in ['500', 'INTERNAL', '503', 'timeout'])
+
+                    if attempt < max_retries - 1 and is_retryable:
+                        session.log('warn', 'gen_img',
+                                   f'Image {idx} failed (attempt {attempt + 1}/{max_retries}): {error_msg[:100]}, retrying...')
+                        import time
+                        time.sleep(2)  # 等待 2 秒后重试
+                    else:
+                        session.log('error', 'gen_img', f'Failed to generate image {idx}: {error_msg}')
+                        # 创建一个占位文件，避免后续步骤失败
+                        output_file.write_text(f'Image generation failed: {error_msg}')
+                        file_sizes.append(0)
+                        break
 
         session.update_step('gen_img', 'completed', {
             'image_count': len(prompts),

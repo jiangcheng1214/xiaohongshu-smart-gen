@@ -67,6 +67,15 @@ def _ensure_skill_installed(skill_name: str = "nano-banana-pro") -> Path:
 
 # ─── 图片生成 ───────────────────────────────────────────────────────────────────
 
+# 宽高比到 prompt 指令的映射
+_ASPECT_RATIO_PROMPTS = {
+    "1:1": "Create a SQUARE image with exactly 1:1 aspect ratio (equal width and height).",
+    "3:4": "Create a PORTRAIT image with exactly 3:4 aspect ratio (taller than wide).",
+    "4:3": "Create a LANDSCAPE image with exactly 4:3 aspect ratio (slightly wider than tall).",
+    "9:16": "Create a VERTICAL PORTRAIT image with exactly 9:16 aspect ratio (phone screen format).",
+    "16:9": "Create a WIDE LANDSCAPE image with exactly 16:9 aspect ratio (cinematic format).",
+}
+
 
 def generate_image(prompt: str, output_path: Path,
                   api_key: str = "", resolution: str = "1K",
@@ -81,11 +90,15 @@ def generate_image(prompt: str, output_path: Path,
         api_key: Gemini API key
         resolution: 分辨率 (1K, 2K, 4K)
         reference_image: 参考图片路径（用于保持一致性）
-        aspect_ratio: 宽高比 (1:1, 3:4, 16:9 等)，传递给 nano-banana-pro
+        aspect_ratio: 宽高比 (1:1, 3:4, 16:9 等)，会在 prompt 开头添加指令
 
     Returns:
         bool: 是否成功
     """
+    # 在 prompt 开头添加宽高比指令
+    ratio_instruction = _ASPECT_RATIO_PROMPTS.get(aspect_ratio, "")
+    if ratio_instruction:
+        prompt = f"{ratio_instruction}\n\n{prompt}"
     skill_name = "nano-banana-pro"
     script_name = "generate_image.py"
 
@@ -124,8 +137,7 @@ def generate_image(prompt: str, output_path: Path,
     cmd = ['uv', 'run', str(generate_script),
            '--prompt', prompt,
            '--filename', str(output_path),
-           '--resolution', resolution,
-           '--aspect-ratio', aspect_ratio]
+           '--resolution', resolution]
 
     # 添加参考图片
     if reference_image and reference_image.exists():
