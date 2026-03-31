@@ -35,7 +35,7 @@
 <td align="center" width="50%">
 <img src="assets/demo/wallpaper_demo.png" alt="壁纸分享" />
 <br />
-<b>金融投资</b>
+<b>壁纸分享</b>
 </td>
 </td>
 </tr>
@@ -48,7 +48,7 @@
 <td align="center" width="50%">
 <img src="assets/demo/finance_demo.png" alt="金融分析" />
 <br />
-<b>壁纸分享</b>
+<b>金融投资</b>
 </td>
 </tr>
 </table>
